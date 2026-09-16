@@ -38,7 +38,7 @@ func (t DefaultTransport) Send(d RequestDraft) (TransportResponse, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	target := strings.TrimRight(t.BaseURL, "/") + d.Path
+	target := joinServerRootAndPath(t.BaseURL, d.Path)
 	parsed, err := url.Parse(target)
 	if err != nil || !parsed.IsAbs() {
 		return TransportResponse{}, newError(CodeConfiguration, "请求地址非法：%s", target)
@@ -81,6 +81,14 @@ func (f TransportFunc) Send(d RequestDraft) (TransportResponse, error) { return 
 // （商户复用自带栈的连接池/中间件；baseURL 语义同 DefaultTransport）。
 func RoundTripperTransport(rt http.RoundTripper, baseURL string) Transport {
 	return TransportFunc(func(d RequestDraft) (TransportResponse, error) {
-		return DefaultTransport{HTTPClient: &http.Client{Transport: rt}, BaseURL: baseURL}.Send(d)
+		return DefaultTransport{
+			HTTPClient: &http.Client{
+				Transport: rt,
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			},
+			BaseURL: baseURL,
+		}.Send(d)
 	})
 }

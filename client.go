@@ -33,16 +33,22 @@ type RequestDraft struct {
 type Config struct {
 	// AppKey 平台分配的应用唯一标识。
 	AppKey string
-	// SecurityReq 算法套件标识（如 WOP-RSA3072-SHA256）。
+	// SecurityReq 算法套件标识（如 WOP-RSA3072-SHA256）；JSON 字段名为 suite。
 	SecurityReq string
 	// MerchantPrivateKey 商户私钥（加签 / L2 入站解包）。
 	MerchantPrivateKey string
 	// PlatformPublicKey 平台公钥（验签 / L2 出站 DEK 包装）。
 	PlatformPublicKey string
-	// GatewayBaseURL 网关基地址（DefaultTransport 使用）。
+	// ServerRoot 主网关根地址（HTTPS 绝对 URL，含 context-path）。
+	ServerRoot string
+	// GatewayBaseURL 网关基地址（ServerRoot 的兼容别名，ServerRoot 优先）。
 	GatewayBaseURL string
+	// BackupServerRoots 备用网关根地址（有序，仅全局；Failover P2）。
+	BackupServerRoots []string
 	// ExpiredSeconds 出站签名有效时长（秒），0 → 默认 1800，上限 86400。
 	ExpiredSeconds int64
+	// HTTPClient 全局 HTTP 客户端参数。
+	HTTPClient HTTPClientSettings
 	// Transport 发送适配器；nil → DefaultTransport（http.Client 默认实例）。
 	Transport Transport
 }
@@ -76,12 +82,16 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, newError(CodeConfiguration, "ExpiredSeconds 超出允许范围 (0, %d]", SignExpiredSecondsMax)
 	}
 
+	baseURL := strings.TrimSpace(cfg.ServerRoot)
+	if baseURL == "" {
+		baseURL = strings.TrimSpace(cfg.GatewayBaseURL)
+	}
 	c := &Client{
 		suite:          suite,
 		appKey:         cfg.AppKey,
 		expiredSeconds: expired,
 		transport:      cfg.Transport,
-		baseURL:        strings.TrimRight(cfg.GatewayBaseURL, "/"),
+		baseURL:        strings.TrimRight(baseURL, "/"),
 	}
 
 	switch {
@@ -108,7 +118,10 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	if c.transport == nil {
-		c.transport = DefaultTransport{HTTPClient: &http.Client{}}
+		c.transport = DefaultTransport{
+			HTTPClient: newDefaultHTTPClient(cfg.HTTPClient),
+			BaseURL:    c.baseURL,
+		}
 	}
 	return c, nil
 }
@@ -151,8 +164,8 @@ func (c *Client) BuildRequest(method, path string, body []byte, level Level, opt
 	if method == "" {
 		return RequestDraft{}, newError(CodeConfiguration, "HTTP method 为空")
 	}
-	if path == "" {
-		return RequestDraft{}, newError(CodeConfiguration, "请求 path 为空")
+	if err := validateAPIPath(path); err != nil {
+		return RequestDraft{}, err
 	}
 
 	options := RequestOptions{}
@@ -263,8 +276,18 @@ func sortStrings(s []string) {
 
 // Do 一站式调用：BuildRequest → Transport.Send → VerifyResponse（F6）。
 // 构建或发送失败返回错误；响应校验失败时 err 携带 wop.Error（Code 可编程处理），
-// VerifyResult 同时返回完整判定。
+// VerifyResult 同时返回完整判定。非 2xx 响应抛 GatewayResponseError（§7.5）。
 func (c *Client) Do(method, path string, body []byte, level Level, opts ...RequestOption) (VerifyResult, TransportResponse, error) {
+	return c.execute(method, path, body, level, opts...)
+}
+
+// Execute 一站式调用（spec execute 语义）：签名 → 发送 → 非 2xx 拦截 → 验签解密。
+func (c *Client) Execute(method, path string, body []byte, level Level, opts ...RequestOption) (VerifyResult, error) {
+	res, _, err := c.execute(method, path, body, level, opts...)
+	return res, err
+}
+
+func (c *Client) execute(method, path string, body []byte, level Level, opts ...RequestOption) (VerifyResult, TransportResponse, error) {
 	draft, err := c.BuildRequest(method, path, body, level, opts...)
 	if err != nil {
 		return VerifyResult{}, TransportResponse{}, err
@@ -272,6 +295,9 @@ func (c *Client) Do(method, path string, body []byte, level Level, opts ...Reque
 	resp, err := c.transport.Send(draft)
 	if err != nil {
 		return VerifyResult{}, TransportResponse{}, err
+	}
+	if !is2xx(resp.StatusCode) {
+		return VerifyResult{}, resp, &GatewayResponseError{StatusCode: resp.StatusCode, Body: resp.Body}
 	}
 	res := c.VerifyResponse(method, path, resp.Headers, resp.Body)
 	if !res.OK {
