@@ -10,18 +10,25 @@ import (
 )
 
 const (
+	// defaultConnectTimeout 缺省 TCP 连接超时（ms，§3.3）。
 	defaultConnectTimeout = 10000
+	// defaultReadTimeout 缺省读响应超时（ms）。
 	defaultReadTimeout    = 30000
+	// defaultMaxRetryCount 缺省跨域名重试上限。
 	defaultMaxRetryCount  = 3
+	// defaultExpiredSeconds 缺省出向签名窗口（秒）。
 	defaultExpiredSeconds = int64(1800)
 )
 
+// validSuites 配置层套件白名单（§3.4，与核心 suiteRegistry 同源维护）。
 var validSuites = map[string]struct{}{
+	"WOP-RSA2048-SHA256": {},
 	"WOP-RSA3072-SHA256": {},
 	"WOP-RSA4096-SHA256": {},
 	"WOP-SM2-SM3":        {},
 }
 
+// rawConfig 是 JSON 原始配置的中间绑定结构（camelCase 字段名）。
 type rawConfig struct {
 	AppKey             string           `json:"appKey"`
 	Suite              string           `json:"suite"`
@@ -33,6 +40,7 @@ type rawConfig struct {
 	HTTPClient         *rawHTTPClient   `json:"httpClient"`
 }
 
+// rawHTTPClient 是 httpClient 对象的原始绑定（指针字段区分缺省与显式零值）。
 type rawHTTPClient struct {
 	ConnectTimeout *json.Number `json:"connectTimeout"`
 	ReadTimeout    *json.Number `json:"readTimeout"`
@@ -100,6 +108,7 @@ func parseConfigBytes(data []byte) (Config, error) {
 	return cfg, nil
 }
 
+// validateRequired 校验必填字段非空（§3.4，缺项即 configuration）。
 func validateRequired(cfg *Config) error {
 	if cfg.AppKey == "" {
 		return configErr("配置文件缺少必填项: appKey")
@@ -119,6 +128,7 @@ func validateRequired(cfg *Config) error {
 	return nil
 }
 
+// parseExpiredSeconds 解析 expiredSeconds（正整数，缺省 1800）。
 func parseExpiredSeconds(num *json.Number, cfg *Config) error {
 	if num == nil {
 		return nil
@@ -131,6 +141,7 @@ func parseExpiredSeconds(num *json.Number, cfg *Config) error {
 	return nil
 }
 
+// parseHTTPClient 解析 httpClient 对象（一层嵌套上限，缺省 10000/30000/3）。
 func parseHTTPClient(raw *rawHTTPClient, cfg *Config) error {
 	if raw == nil {
 		return nil
@@ -154,6 +165,7 @@ func parseHTTPClient(raw *rawHTTPClient, cfg *Config) error {
 	return nil
 }
 
+// parsePositiveInt 解析正整数字段（类型不符/越界/非正数即 configuration）。
 func parsePositiveInt(field string, num *json.Number) (int, error) {
 	v, err := num.Int64()
 	if err != nil {
@@ -165,6 +177,7 @@ func parsePositiveInt(field string, num *json.Number) (int, error) {
 	return int(v), nil
 }
 
+// parseNonNegativeInt 解析非负整数字段。
 func parseNonNegativeInt(field string, num *json.Number) (int, error) {
 	v, err := num.Int64()
 	if err != nil {
@@ -176,6 +189,7 @@ func parseNonNegativeInt(field string, num *json.Number) (int, error) {
 	return int(v), nil
 }
 
+// parsePositiveInt64 解析正整数字段（long 域）。
 func parsePositiveInt64(field string, num *json.Number) (int64, error) {
 	v, err := num.Int64()
 	if err != nil {
@@ -187,15 +201,18 @@ func parsePositiveInt64(field string, num *json.Number) (int64, error) {
 	return v, nil
 }
 
+// validateServerRoot 校验主网关地址（K20：HTTPS 绝对 URL，无 query/fragment）。
 func validateServerRoot(serverRoot string) error {
 	return validateGatewayURL("serverRoot", serverRoot)
 }
 
+// validateBackupServerRoot 校验备用网关地址（逐项，错误消息带索引）。
 func validateBackupServerRoot(index int, serverRoot string) error {
 	field := "backupServerRoots[" + itoa(index) + "]"
 	return validateGatewayURL(field, serverRoot)
 }
 
+// validateGatewayURL 网关地址统一校验：URL 语法、HTTPS scheme、query/fragment 拒绝。
 func validateGatewayURL(field, serverRoot string) error {
 	if serverRoot == "" {
 		return configErr("%s 不是合法 URL: 空值", field)
@@ -213,6 +230,7 @@ func validateGatewayURL(field, serverRoot string) error {
 	return nil
 }
 
+// stripBOM 剥离 UTF-8 BOM（§4.3 容忍并剥离）。
 func stripBOM(data []byte) []byte {
 	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
 		return data[3:]
@@ -220,20 +238,24 @@ func stripBOM(data []byte) []byte {
 	return data
 }
 
+// jsonFrame 是重复键预扫的解析栈帧：对象帧携带已见键集与期望位，数组帧仅占位。
+type jsonFrame struct {
+	obj   *jsonObjFrame
+	array bool
+}
+
+// jsonObjFrame 对象帧：已见键集与期望键位。
+type jsonObjFrame struct {
+	keys      map[string]struct{}
+	expectKey bool
+}
+
 // detectDuplicateKeys 使用 json.Decoder.Token() 预扫对象键（§4.4 K21）。
 func detectDuplicateKeys(data []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 
-	type objFrame struct {
-		keys      map[string]struct{}
-		expectKey bool
-	}
-	type frame struct {
-		obj   *objFrame
-		array bool
-	}
-	var stack []frame
+	var stack []jsonFrame
 
 	for {
 		tok, err := dec.Token()
@@ -247,9 +269,9 @@ func detectDuplicateKeys(data []byte) error {
 		case json.Delim:
 			switch v {
 			case '{':
-				stack = append(stack, frame{obj: &objFrame{keys: make(map[string]struct{}), expectKey: true}})
+				stack = append(stack, jsonFrame{obj: &jsonObjFrame{keys: make(map[string]struct{}), expectKey: true}})
 			case '[':
-				stack = append(stack, frame{array: true})
+				stack = append(stack, jsonFrame{array: true})
 			case '}', ']':
 				if len(stack) == 0 {
 					return configErr("配置文件 JSON 解析失败: 意外符号 %q", v)
@@ -277,7 +299,8 @@ func detectDuplicateKeys(data []byte) error {
 	}
 }
 
-func markValueComplete(stack *[]frame) {
+// markValueComplete 标记栈顶对象进入期望键状态（数组帧跳过）。
+func markValueComplete(stack *[]jsonFrame) {
 	for i := len(*stack) - 1; i >= 0; i-- {
 		if (*stack)[i].array {
 			continue
@@ -289,6 +312,7 @@ func markValueComplete(stack *[]frame) {
 	}
 }
 
+// itoa 极简整数转十进制串（错误消息索引用）。
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

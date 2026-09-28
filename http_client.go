@@ -14,6 +14,7 @@ type HTTPClientSettings struct {
 	MaxRetryCount  int
 }
 
+// newDefaultHTTPClient 按全局参数构造默认 HTTP 客户端（缺省 10000/30000，重定向关闭 §7.4.1）。
 func newDefaultHTTPClient(settings HTTPClientSettings) *http.Client {
 	connect := settings.ConnectTimeout
 	if connect <= 0 {

@@ -7,8 +7,10 @@ import (
 	sdkconfig "github.com/wop-platform/wop-go-sdk/config"
 )
 
+// defaultHolder 默认客户端单例持有者（K15：mutex 全路径保护）。
 var defaultHolder defaultClientHolder
 
+// defaultClientHolder 持有默认实例与初始化错误（K26：Reset 双清零）。
 type defaultClientHolder struct {
 	mu     sync.Mutex
 	client *Client
@@ -67,6 +69,7 @@ func NewFromFileConfig(cfg sdkconfig.Config) (*Client, error) {
 	return NewClient(wopCfg)
 }
 
+// wrapConfigError 将 config 包错误映射为 wop configuration 错误。
 func wrapConfigError(err error) error {
 	var ce *sdkconfig.Error
 	if errors.As(err, &ce) {

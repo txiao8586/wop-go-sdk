@@ -17,7 +17,7 @@ const (
 type Suite struct {
 	securityReq      string
 	family           Family
-	keyBits          int    // RSA3072/4096；SM2 恒 0
+	keyBits          int    // RSA2048/3072/4096；SM2 恒 0
 	signAlgorithm    string // ① 签名算法
 	messageAlgorithm string // ② 报文加密算法（dek alg 段取值）
 	keyWrapAlgorithm string // ③ 密钥包装算法
@@ -26,7 +26,7 @@ type Suite struct {
 
 // 支持的密钥算法标识（spec §2.2）；映射集中注册于代码，无运行时配置入口（D13）。
 var supportedKeyAlgs = map[string]struct{}{
-	"RSA3072": {}, "RSA4096": {}, "SM2": {},
+	"RSA2048": {}, "RSA3072": {}, "RSA4096": {}, "SM2": {},
 }
 
 // 支持的摘要算法标识。
@@ -36,6 +36,11 @@ var supportedDigestAlgs = map[string]struct{}{
 
 // suiteRegistry 单一注册表：securityReq → 套件（R5/D13，扩展需发版）。
 var suiteRegistry = map[string]Suite{
+	"WOP-RSA2048-SHA256": {
+		securityReq: "WOP-RSA2048-SHA256", family: FamilyRSA, keyBits: 2048,
+		signAlgorithm: "SHA256withRSA", messageAlgorithm: "AES-256-GCM",
+		keyWrapAlgorithm: "RSA-2048-OAEP", digestTag: "sha-256",
+	},
 	"WOP-RSA3072-SHA256": {
 		securityReq: "WOP-RSA3072-SHA256", family: FamilyRSA, keyBits: 3072,
 		signAlgorithm: "SHA256withRSA", messageAlgorithm: "AES-256-GCM",
@@ -69,7 +74,7 @@ func ParseSuite(securityReq string) (Suite, error) {
 	}
 	keyAlg, digestAlg := parts[1], parts[2]
 	if _, ok := supportedKeyAlgs[keyAlg]; !ok {
-		return Suite{}, newError(CodeConfiguration, "不支持的密钥算法 %q（支持 RSA3072/RSA4096/SM2）", keyAlg)
+		return Suite{}, newError(CodeConfiguration, "不支持的密钥算法 %q（支持 RSA2048/RSA3072/RSA4096/SM2）", keyAlg)
 	}
 	if _, ok := supportedDigestAlgs[digestAlg]; !ok {
 		return Suite{}, newError(CodeConfiguration, "不支持的摘要算法 %q（支持 SHA256/SM3）", digestAlg)
@@ -89,7 +94,7 @@ func (s Suite) SecurityReq() string { return s.securityReq }
 // Family 返回算法体系族（RSA / SM2）。
 func (s Suite) Family() Family { return s.family }
 
-// KeyBits 返回 RSA 密钥位数（3072/4096）；SM2 套件恒 0。
+// KeyBits 返回 RSA 密钥位数（2048/3072/4096）；SM2 套件恒 0。
 func (s Suite) KeyBits() int { return s.keyBits }
 
 // SignAlgorithm 返回推导后的签名算法名（①）。
@@ -116,7 +121,7 @@ func (s Suite) cekLen() int {
 }
 
 // 签名定长（spec §3.3 ①：定长编码使格式校验可前置）：
-// RSA = 密钥字节数（3072→384B/512 字符，4096→512B/683 字符）；SM2 = r‖s 64B。
+// RSA = 密钥字节数（2048→256B/342 字符，3072→384B/512 字符，4096→512B/683 字符）；SM2 = r‖s 64B。
 func (s Suite) signatureLen() int {
 	if s.IsSM2() {
 		return 64

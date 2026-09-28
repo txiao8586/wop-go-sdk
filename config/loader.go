@@ -16,14 +16,16 @@ const (
 )
 
 var (
-	cacheMu sync.Mutex
-	cache   = make(map[string]Config)
+	// cacheMu 保护加载缓存（K13：无自动失效，仅 clearCache 显式清除）。
+cacheMu sync.Mutex
+	// cache 以规范化资源位置为 key 的配置缓存（同一位置返回同一快照）。
+cache   = make(map[string]Config)
 )
 
 // LoadDefault 按 §4.2 自动发现并加载配置；同一位置缓存解析结果。
 func LoadDefault() (Config, error) {
 	candidates := defaultDiscoveryCandidates()
-	for i, c := range candidates {
+	for _, c := range candidates {
 		if c.explicit && !c.readable {
 			return Config{}, configErr("配置文件不可读: %s", c.display)
 		}
@@ -40,9 +42,10 @@ func LoadDefault() (Config, error) {
 		}
 		b.WriteString(c.display)
 	}
-	return Config{}, configErr(b.String())
+	return Config{}, configErr("%s", b.String())
 }
 
+// discoveryCandidate 是单个发现来源：路径、展示名、可读性与是否显式指定。
 type discoveryCandidate struct {
 	path     string
 	display  string
@@ -50,6 +53,7 @@ type discoveryCandidate struct {
 	explicit bool
 }
 
+// defaultDiscoveryCandidates 按 §4.2 优先级枚举发现来源（显式 env 优先）。
 func defaultDiscoveryCandidates() []discoveryCandidate {
 	var out []discoveryCandidate
 
@@ -80,11 +84,13 @@ func defaultDiscoveryCandidates() []discoveryCandidate {
 	return out
 }
 
+// expandDisplay 返回候选路径的展开展示形式（错误消息用）。
 func expandDisplay(template, cwd, home string) string {
 	s := strings.ReplaceAll(template, "{cwd}", cwd)
 	return strings.ReplaceAll(s, "{userHome}", home)
 }
 
+// makeCandidate 组装候选并测定可读性。
 func makeCandidate(path, display string, explicit bool) discoveryCandidate {
 	readable := false
 	if path == embeddedConfigPath {
@@ -125,6 +131,7 @@ func Load(path string) (Config, error) {
 	return cfg, nil
 }
 
+// readConfigFile 读取配置文件（§4.3：UTF-8 剥 BOM，空文件报错）。
 func readConfigFile(path string) ([]byte, error) {
 	if path == embeddedConfigPath {
 		if len(embeddedDefaultConfig) == 0 {

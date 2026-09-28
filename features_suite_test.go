@@ -216,6 +216,10 @@ func (s *bddState) registerSteps(ctx *godog.ScenarioContext) {
 	// ---------- S2 确定性重放 ----------
 
 	ctx.When(`^商户以固定时间戳、nonce 与随机源两次构建同一 L2 请求$`, func() error {
+		// 附录 I/I3：缺省 requestId 属 CSPRNG 豁免项，注入固定生成器后全头字节级可重放
+		prev := requestIDGen
+		requestIDGen = func() string { return "fixedreq000000000000000000000001" }
+		defer func() { requestIDGen = prev }()
 		opts := func() []RequestOption {
 			return []RequestOption{
 				WithTimestamp(1755900000000), WithNonce("bdd-nonce-replay"),

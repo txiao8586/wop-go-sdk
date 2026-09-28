@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -137,6 +136,10 @@ type RequestOptions struct {
 	Nonce string
 	// Random 随机源（nonce/CEK/IV 顺序消费）；nil → crypto/rand。
 	Random io.Reader
+	// RequestID 商户请求标识（wop-specs 附录 I：x-wop-request-id 透传头，恒不入签；
+	// 须为不含个人数据的不透明关联标识）。空/空白 → 缺省生成 UUID 去连字符（头恒存在）；
+	// 显式传值 trim 后原值上行；控制字符（trim 前扫描）与超长（trim 后 UTF-8 字节 > 128）即拒。
+	RequestID string
 }
 
 // RequestOption 单个选项。
@@ -157,6 +160,11 @@ func WithRandom(r io.Reader) RequestOption {
 	return func(o *RequestOptions) { o.Random = r }
 }
 
+// WithRequestID 显式指定商户请求标识（附录 I 透传头；空/空白 → 缺省生成）。
+func WithRequestID(id string) RequestOption {
+	return func(o *RequestOptions) { o.RequestID = id }
+}
+
 // BuildRequest 构造已签名（L2 时已加密）的请求草稿（spec §2 buildRequest）。
 // 纯计算、零网络 IO；除 CSPRNG 值外同输入同输出。
 func (c *Client) BuildRequest(method, path string, body []byte, level Level, opts ...RequestOption) (RequestDraft, error) {
@@ -171,6 +179,11 @@ func (c *Client) BuildRequest(method, path string, body []byte, level Level, opt
 	options := RequestOptions{}
 	for _, opt := range opts {
 		opt(&options)
+	}
+	// 附录 I/I2：requestId 构造即校验（fail-fast，不延迟到发送前）
+	resolvedRequestID, hasRequestID, err := resolveRequestID(options.RequestID)
+	if err != nil {
+		return RequestDraft{}, err
 	}
 	random := options.Random
 	if random == nil {
@@ -235,6 +248,15 @@ func (c *Client) BuildRequest(method, path string, body []byte, level Level, opt
 	}
 	sortStrings(names)
 	headers[HeaderSign] = buildSignHeader(c.suite.SecurityReq(), c.expiredSeconds, names, signature)
+
+	// requestId 透传头（附录 I）：在签名落盘**之后**写入，保证不在 signedHeaders 冻结清单中；
+	// 商户未传（含 trim 后为空）→ 缺省生成，最终头恒存在
+	if !hasRequestID {
+		resolvedRequestID = requestIDGen()
+	}
+	headers[HeaderRequestId] = resolvedRequestID
+	// 附录 I/I3 日志义务：出向构造点打印最终透传头值（非敏感，豁免脱敏），供网关 AccessLog 关联排查
+	outboundLog.Printf("x-wop-request-id=%s %s %s", resolvedRequestID, method, path)
 
 	return RequestDraft{Method: method, Path: path, Headers: headers, WireBody: wireBody}, nil
 }

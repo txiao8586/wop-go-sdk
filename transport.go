@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 // Transport 是可插拔 HTTP 适配层（spec §1.1 Q1：协议核心纯函数，传输可替换）。
