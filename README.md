@@ -149,6 +149,14 @@ tr := wop.RoundTripperTransport(myRoundTripper, baseURL)
 tr := wop.TransportFunc(func(d wop.RequestDraft) (wop.TransportResponse, error) { ... })
 ```
 
+## 能力边界与阶段（K9 诚实披露）
+
+- **Failover（备用网关切换）属 P2**（config-spec §7.3 / 附录 B）：配置层的
+  `backupServerRoots` 与 `httpClient.maxRetryCount` 已按规范解析与校验（C2），
+  但当前版本候选集仅主网关 `serverRoot`，这两个字段**暂不改变请求行为**。
+  密钥轮换重置请用 `config.ClearCache()` + `ResetDefault()`（K26）。
+- 请求级覆盖（凭证/超时/主网关地址）与 `x-wop-request-id` 透传（附录 I）已落地。
+
 ## 🧩 WOP 生态导航 | Ecosystem
 
 | 类别 | 组件 |
