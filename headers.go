@@ -14,6 +14,8 @@ const (
 	HeaderNonce = "x-wop-nonce"
 	// HeaderEncrypt L2 数字信封元数据头。
 	HeaderEncrypt = "x-wop-encrypt"
+	// HeaderRequestId 商户请求标识透传头（wop-specs 附录 I：唯一可选透传头，恒不入签）。
+	HeaderRequestId = "x-wop-request-id"
 )
 
 // 签名协议常量（spec §7 / 网关 GatewayConstants）。

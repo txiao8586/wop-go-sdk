@@ -50,16 +50,19 @@ func TestVectorConformance_MessageEncrypt(t *testing.T) {
 
 func TestVectorConformance_Signature(t *testing.T) {
 	v := loadGoldenVectors(t)
-	if len(v.Signature) != 3 {
-		t.Fatalf("signature 条数 = %d, want 3", len(v.Signature))
+	if len(v.Signature) != 4 {
+		t.Fatalf("signature 条数 = %d, want 4", len(v.Signature))
 	}
 	for _, sv := range v.Signature {
 		msg := []byte(sv.Message)
 		switch sv.ID {
-		case "rsa3072-sign", "rsa4096-sign":
-			suiteID := map[string]string{"rsa3072-sign": "WOP-RSA3072-SHA256", "rsa4096-sign": "WOP-RSA4096-SHA256"}[sv.ID]
+		case "rsa2048-sign", "rsa3072-sign", "rsa4096-sign":
+			suiteID := map[string]string{"rsa2048-sign": "WOP-RSA2048-SHA256", "rsa3072-sign": "WOP-RSA3072-SHA256", "rsa4096-sign": "WOP-RSA4096-SHA256"}[sv.ID]
 			suite := mustSuite(t, suiteID)
-			key := v.Keys.RSA3072
+			key := v.Keys.RSA2048
+			if sv.ID == "rsa3072-sign" {
+				key = v.Keys.RSA3072
+			}
 			if sv.ID == "rsa4096-sign" {
 				key = v.Keys.RSA4096
 			}
@@ -106,8 +109,8 @@ func TestVectorConformance_Signature(t *testing.T) {
 
 func TestVectorConformance_KeyEncrypt(t *testing.T) {
 	v := loadGoldenVectors(t)
-	if len(v.KeyEncrypt) != 6 {
-		t.Fatalf("keyEncrypt 条数 = %d, want 6", len(v.KeyEncrypt))
+	if len(v.KeyEncrypt) != 7 {
+		t.Fatalf("keyEncrypt 条数 = %d, want 7", len(v.KeyEncrypt))
 	}
 	privs := map[string]*privKey{}
 	_ = privs

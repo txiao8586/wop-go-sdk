@@ -170,9 +170,8 @@ func TestDefaultTransport_Errors(t *testing.T) {
 	}
 }
 
-// 非 2xx 状态：网关错误信封仍走 F6 校验（此处无签名头 → 明确失败），
-// 状态码原样透传给调用方判断。
-func TestClient_Do_Non2xxPassthrough(t *testing.T) {
+// 非 2xx 状态：execute 链路在验签前拦截为 GatewayResponseError（§7.5）。
+func TestClient_Do_Non2xxGatewayError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(429)
 		_, _ = w.Write([]byte(`{"code":"OP_GW_1017"}`))
@@ -184,9 +183,32 @@ func TestClient_Do_Non2xxPassthrough(t *testing.T) {
 	client, _ := NewClient(cfg)
 	_, resp, err := client.Do("POST", "/p", []byte("x"), Level0)
 	if err == nil {
-		t.Fatal("无签名响应应报错")
+		t.Fatal("非 2xx 应报错")
+	}
+	gw, ok := err.(*GatewayResponseError)
+	if !ok {
+		t.Fatalf("错误类型 = %T", err)
+	}
+	if gw.StatusCode != 429 || string(gw.Body) != `{"code":"OP_GW_1017"}` {
+		t.Fatalf("gateway err: %+v", gw)
 	}
 	if resp.StatusCode != 429 {
-		t.Errorf("状态码应透传: %d", resp.StatusCode)
+		t.Errorf("TransportResponse 状态码应透传: %d", resp.StatusCode)
+	}
+}
+
+func TestClient_Execute_Non2xx(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte("err"))
+	}))
+	defer srv.Close()
+
+	cfg := testConfig(t, "WOP-RSA3072-SHA256")
+	cfg.Transport = DefaultTransport{BaseURL: srv.URL}
+	client, _ := NewClient(cfg)
+	_, err := client.Execute("POST", "/p", []byte("x"), Level0)
+	if _, ok := err.(*GatewayResponseError); !ok {
+		t.Fatalf("Execute 非 2xx err=%T %v", err, err)
 	}
 }

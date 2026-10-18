@@ -123,8 +123,14 @@ func TestInteropConformance_Build(t *testing.T) {
 				t.Errorf("%s: 头 %s = %q, want %q", c.ID, name, got, want)
 			}
 		}
-		if len(draft.Headers) != len(c.Expected.Headers) {
-			t.Errorf("%s: 头集合不一致（%d vs %d）", c.ID, len(draft.Headers), len(c.Expected.Headers))
+		// x-wop-request-id 是规格附录 I 的可选透传头（恒不入签、网关日志关联用），
+		// 不属于 interop 冻结的协议头合同（fixture sha256 钉死不可改），比对前剥离
+		protocolHeaderCount := len(draft.Headers)
+		if _, ok := draft.Headers[HeaderRequestId]; ok {
+			protocolHeaderCount--
+		}
+		if protocolHeaderCount != len(c.Expected.Headers) {
+			t.Errorf("%s: 头集合不一致（%d vs %d）", c.ID, protocolHeaderCount, len(c.Expected.Headers))
 		}
 	}
 	if builds != 6 {

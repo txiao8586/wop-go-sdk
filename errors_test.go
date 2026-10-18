@@ -77,7 +77,7 @@ func TestErrorCode_SourceOnlyUsesClosedSet(t *testing.T) {
 // spec:2.2-3 否定式：非法 securityReq 绝不落入 parse/unsupported
 // （旧 SUITE_PARSE/SUITE_UNSUPPORTED 分类已并入 configuration，F1）。
 func TestErrorCode_NeverClassifiesSuiteErrorsAsParseOrUnsupported(t *testing.T) {
-	for _, bad := range []string{"", "RSA3072-SHA256", "WOP-RSA2048-SHA256", "WOP-RSA3072-SM3"} {
+	for _, bad := range []string{"", "RSA3072-SHA256", "WOP-RSA1024-SHA256", "WOP-RSA3072-SM3"} {
 		_, err := ParseSuite(bad)
 		if err == nil {
 			t.Fatalf("ParseSuite(%q) 应拒绝", bad)

@@ -149,6 +149,29 @@ tr := wop.RoundTripperTransport(myRoundTripper, baseURL)
 tr := wop.TransportFunc(func(d wop.RequestDraft) (wop.TransportResponse, error) { ... })
 ```
 
+## 破坏性变更（0.x）
+
+本 PR（config 层 + RSA2048 套件）改变两处默认行为，升级前须评估：
+
+1. **Do/Execute 非 2xx 行为**：网关返回非 2xx 时，不再把响应体送入
+   `VerifyResponse`，而是直接返回 `*GatewayResponseError`（携带 `StatusCode`
+   与原始 `Body`，§7.5 K5）。原先"非 2xx 响应也走验签管线、以验签失败报错"
+   的路径消失；依赖旧行为做错误分支的调用方须改为断言 `*GatewayResponseError`。
+2. **默认 transport 超时**：`Config.Transport` 未注入时，默认 HTTP 客户端从
+   零超时（无限等待）改为 **10s 连接超时 / 30s 响应头超时**（可通过配置
+   `httpClient.connectTimeout` / `httpClient.readTimeout` 覆盖，缺省
+   10000/30000ms）。慢网关调用**首字节 >30s 将超时报错**——长轮询/慢接口
+   场景须显式调大 `readTimeout` 或自注入无超时 `Transport`。
+
+## 能力边界与阶段（K9 诚实披露）
+
+- **Failover（备用网关切换）属 P2**（config-spec §7.3 / 附录 B）：配置层的
+  `backupServerRoots` 与 `httpClient.maxRetryCount` 已按规范解析与校验（C2），
+  但当前版本候选集仅主网关 `serverRoot`，这两个字段**暂不改变请求行为**。
+  密钥轮换重置请用 `config.ClearCache()` + `ResetDefault()`（K26）。
+- **请求级覆盖（凭证/超时/主网关地址）属 P1 目标，尚未实现**：本版零实现，
+  当前请求级选项仅支持 `x-wop-request-id` 透传（附录 I，`WithRequestID`）。
+
 ## 🧩 WOP 生态导航 | Ecosystem
 
 | 类别 | 组件 |

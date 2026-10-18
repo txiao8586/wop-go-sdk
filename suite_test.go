@@ -61,7 +61,7 @@ func TestParseSuite_Rejects(t *testing.T) {
 		{"WOP-RSA3072", CodeConfiguration},              // 非三段
 		{"WOP-RSA3072-SHA256-EXTRA", CodeConfiguration}, // 四段
 		{"XOP-RSA3072-SHA256", CodeConfiguration},       // 前缀非 WOP
-		{"WOP-RSA2048-SHA256", CodeConfiguration},       // 密钥算法不在支持列表
+		{"WOP-RSA1024-SHA256", CodeConfiguration},       // 密钥算法不在支持列表
 		{"WOP-ECDSA-SHA256", CodeConfiguration},
 		{"WOP-RSA3072-SHA512", CodeConfiguration}, // 摘要算法不在支持列表
 		{"WOP-RSA3072-SM3", CodeConfiguration},    // 国际密钥+国密摘要，跨族（I5）
