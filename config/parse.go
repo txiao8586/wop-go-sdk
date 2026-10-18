@@ -13,9 +13,9 @@ const (
 	// defaultConnectTimeout 缺省 TCP 连接超时（ms，§3.3）。
 	defaultConnectTimeout = 10000
 	// defaultReadTimeout 缺省读响应超时（ms）。
-	defaultReadTimeout    = 30000
+	defaultReadTimeout = 30000
 	// defaultMaxRetryCount 缺省跨域名重试上限。
-	defaultMaxRetryCount  = 3
+	defaultMaxRetryCount = 3
 	// defaultExpiredSeconds 缺省出向签名窗口（秒）。
 	defaultExpiredSeconds = int64(1800)
 )
@@ -30,14 +30,14 @@ var validSuites = map[string]struct{}{
 
 // rawConfig 是 JSON 原始配置的中间绑定结构（camelCase 字段名）。
 type rawConfig struct {
-	AppKey             string           `json:"appKey"`
-	Suite              string           `json:"suite"`
-	MerchantPrivateKey string           `json:"merchantPrivateKey"`
-	PlatformPublicKey  string           `json:"platformPublicKey"`
-	ServerRoot         string           `json:"serverRoot"`
-	BackupServerRoots  []string         `json:"backupServerRoots"`
-	ExpiredSeconds     *json.Number     `json:"expiredSeconds"`
-	HTTPClient         *rawHTTPClient   `json:"httpClient"`
+	AppKey             string         `json:"appKey"`
+	Suite              string         `json:"suite"`
+	MerchantPrivateKey string         `json:"merchantPrivateKey"`
+	PlatformPublicKey  string         `json:"platformPublicKey"`
+	ServerRoot         string         `json:"serverRoot"`
+	BackupServerRoots  []string       `json:"backupServerRoots"`
+	ExpiredSeconds     *json.Number   `json:"expiredSeconds"`
+	HTTPClient         *rawHTTPClient `json:"httpClient"`
 }
 
 // rawHTTPClient 是 httpClient 对象的原始绑定（指针字段区分缺省与显式零值）。

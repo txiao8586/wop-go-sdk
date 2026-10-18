@@ -26,7 +26,7 @@ func newDefaultHTTPClient(settings HTTPClientSettings) *http.Client {
 	}
 	dialer := &net.Dialer{Timeout: time.Duration(connect) * time.Millisecond}
 	transport := &http.Transport{
-		DialContext:           func(ctx context.Context, network, addr string) (net.Conn, error) {
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return dialer.DialContext(ctx, network, addr)
 		},
 		ResponseHeaderTimeout: time.Duration(read) * time.Millisecond,

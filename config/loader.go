@@ -17,9 +17,9 @@ const (
 
 var (
 	// cacheMu 保护加载缓存（K13：无自动失效，仅 clearCache 显式清除）。
-cacheMu sync.Mutex
+	cacheMu sync.Mutex
 	// cache 以规范化资源位置为 key 的配置缓存（同一位置返回同一快照）。
-cache   = make(map[string]Config)
+	cache = make(map[string]Config)
 )
 
 // LoadDefault 按 §4.2 自动发现并加载配置；同一位置缓存解析结果。

@@ -12,8 +12,8 @@ var defaultHolder defaultClientHolder
 
 // defaultClientHolder 持有默认实例与初始化错误（K26：Reset 双清零）。
 type defaultClientHolder struct {
-	mu     sync.Mutex
-	client *Client
+	mu      sync.Mutex
+	client  *Client
 	initErr error
 }
 
