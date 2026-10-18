@@ -35,7 +35,7 @@ import (
 func main() {
 	client, err := wop.NewClient(wop.Config{
 		AppKey:             "app_test_001",
-		SecurityReq:        "WOP-RSA3072-SHA256", // 或 WOP-RSA4096-SHA256 / WOP-SM2-SM3
+		SecurityReq:        "WOP-RSA2048-SHA256", // 或 WOP-RSA4096-SHA256 / WOP-SM2-SM3
 		MerchantPrivateKey: merchantPrivateKeyPEM,
 		PlatformPublicKey:  platformPublicKeyPEM,
 		GatewayBaseURL:     "https://wop.example.com",
