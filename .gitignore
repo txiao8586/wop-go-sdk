@@ -18,3 +18,7 @@ __pycache__/
 
 # Mac
 .DS_Store
+
+# 黄金向量按钉版拉取生成（internal/testvectors），不落库
+internal/testdata/crypto-vectors.json
+internal/testdata/interop-cases.json
