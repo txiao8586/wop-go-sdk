@@ -2,12 +2,14 @@ package wop
 
 import (
 	"encoding/json"
+	"github.com/wop-platform/wop-go-sdk/internal/testvectors"
 	"os"
 	"testing"
 )
 
 // 黄金向量 fixture（协议真源字节副本，禁手改；spec 附录 B.2 / D9）。
-const vectorsPath = "internal/testdata/crypto-vectors.json"
+// 钉版拉取路径（testvectors 内 ref+sha256 校验，fail-closed）
+var vectorsPath = testvectors.Path("crypto-vectors.json")
 
 type goldenVectors struct {
 	Inputs struct {

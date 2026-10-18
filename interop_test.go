@@ -2,6 +2,7 @@ package wop
 
 import (
 	"encoding/json"
+	"github.com/wop-platform/wop-go-sdk/internal/testvectors"
 	"net/http"
 	"os"
 	"strings"
@@ -12,7 +13,8 @@ import (
 // fixture 为 wop-specs/interop/v1 的字节副本（禁手改），与本仓生成器输出一致。
 // build 方向断言"同输入复现同 draft"；verify 方向断言跨仓编排与错误分类合同。
 
-const interopFixturePath = "internal/testdata/interop-cases.json"
+// 钉版拉取路径（testvectors 内 ref+sha256 校验，fail-closed）
+var interopFixturePath = testvectors.Path("interop-cases.json")
 
 type interopFixtureT struct {
 	Meta struct {

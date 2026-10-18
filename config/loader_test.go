@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/wop-platform/wop-go-sdk/internal/testvectors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,7 +12,7 @@ import (
 
 func testKeyMaterial(t *testing.T) (merchantPriv, platformPub string) {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "internal", "testdata", "crypto-vectors.json"))
+	raw, err := os.ReadFile(testvectors.Path("crypto-vectors.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
