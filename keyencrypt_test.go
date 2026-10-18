@@ -235,6 +235,9 @@ func TestParseDekPayload_Rejects(t *testing.T) {
 
 func rsaPrivateOf(t *testing.T, v *goldenVectors, keyID string) string {
 	t.Helper()
+	if keyID == "rsa2048" {
+		return v.Keys.RSA2048.PrivatePkcs8B64
+	}
 	if keyID == "rsa4096" {
 		return v.Keys.RSA4096.PrivatePkcs8B64
 	}

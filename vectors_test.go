@@ -22,6 +22,10 @@ type goldenVectors struct {
 		SM2FixedKB64u string `json:"sm2FixedKB64u"`
 	} `json:"inputs"`
 	Keys struct {
+		RSA2048 struct {
+			PublicSpkiB64   string `json:"publicSpkiB64"`
+			PrivatePkcs8B64 string `json:"privatePkcs8B64"`
+		} `json:"rsa2048"`
 		RSA3072 struct {
 			PublicSpkiB64   string `json:"publicSpkiB64"`
 			PrivatePkcs8B64 string `json:"privatePkcs8B64"`
