@@ -166,6 +166,9 @@ func TestSubMchIDValidation(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "实际 129") {
 			t.Fatalf("129 字符应拒绝且消息含实际值, got %v", err)
 		}
+		if we, ok := err.(*Error); !ok || we.Code != CodeConfiguration {
+			t.Errorf("129 字符: err = %v, want configuration", err)
+		}
 	})
 
 	t.Run("控制字符trim前扫描即拒", func(t *testing.T) {
@@ -192,6 +195,9 @@ func TestSubMchIDValidation(t *testing.T) {
 		if !strings.Contains(err.Error(), "可打印 ASCII") {
 			t.Errorf("消息须含「可打印 ASCII」，got %q", err.Error())
 		}
+		if we, ok := err.(*Error); !ok || we.Code != CodeConfiguration {
+			t.Errorf("非 ASCII: err = %v, want configuration", err)
+		}
 		if strings.Contains(err.Error(), "中文") {
 			t.Errorf("错误消息不得回显原值，got %q", err.Error())
 		}
@@ -202,6 +208,9 @@ func TestSubMchIDValidation(t *testing.T) {
 			_, err := build(bad)
 			if err == nil || !strings.Contains(err.Error(), "内部空白") {
 				t.Errorf("subMchId %q 应因内部空白拒绝, got %v", bad, err)
+			}
+			if we, ok := err.(*Error); !ok || we.Code != CodeConfiguration {
+				t.Errorf("subMchId %q: err = %v, want configuration", bad, err)
 			}
 		}
 	})

@@ -84,7 +84,7 @@ When calling business APIs on behalf of a sub-merchant, pass `WithSubMchID` per 
 (value = the sub-merchant's `plf_co_id`):
 
 ```go
-draft, err := client.BuildRequest("POST", "/gateway/order/create", body, wop.Level0,
+_, err := client.BuildRequest("POST", "/gateway/order/create", body, wop.Level0,
 	wop.WithSubMchID("PLF-SUB-001"))
 // one-shot:
 _, _, err = client.Do("POST", "/gateway/order/create", body, wop.Level0,

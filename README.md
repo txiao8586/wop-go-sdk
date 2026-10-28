@@ -80,7 +80,7 @@ handle(res.Plaintext)
 代子商户调用业务 API 时，按请求传 `WithSubMchID`（值 = 子商户 `plf_co_id`）：
 
 ```go
-draft, err := client.BuildRequest("POST", "/gateway/order/create", body, wop.Level0,
+_, err := client.BuildRequest("POST", "/gateway/order/create", body, wop.Level0,
 	wop.WithSubMchID("PLF-SUB-001"))
 // 一站式调用：
 _, _, err = client.Do("POST", "/gateway/order/create", body, wop.Level0,
