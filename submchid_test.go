@@ -166,6 +166,9 @@ func TestSubMchIDValidation(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "实际 129") {
 			t.Fatalf("129 字符应拒绝且消息含实际值, got %v", err)
 		}
+		if we, ok := err.(*Error); !ok || we.Code != CodeConfiguration {
+			t.Fatalf("129 字符: err = %v, want configuration", err)
+		}
 	})
 
 	t.Run("控制字符trim前扫描即拒", func(t *testing.T) {
@@ -192,6 +195,9 @@ func TestSubMchIDValidation(t *testing.T) {
 		if !strings.Contains(err.Error(), "可打印 ASCII") {
 			t.Errorf("消息须含「可打印 ASCII」，got %q", err.Error())
 		}
+		if we, ok := err.(*Error); !ok || we.Code != CodeConfiguration {
+			t.Errorf("非 ASCII: err = %v, want configuration", err)
+		}
 		if strings.Contains(err.Error(), "中文") {
 			t.Errorf("错误消息不得回显原值，got %q", err.Error())
 		}
@@ -202,6 +208,9 @@ func TestSubMchIDValidation(t *testing.T) {
 			_, err := build(bad)
 			if err == nil || !strings.Contains(err.Error(), "内部空白") {
 				t.Errorf("subMchId %q 应因内部空白拒绝, got %v", bad, err)
+			}
+			if we, ok := err.(*Error); !ok || we.Code != CodeConfiguration {
+				t.Errorf("subMchId %q: err = %v, want configuration", bad, err)
 			}
 		}
 	})
@@ -251,5 +260,16 @@ func TestSubMchIDExecutePassthrough(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("Execute 路径子商户头未入签: %v", parsed.signedHeaders)
+	}
+}
+
+// 附录 J/J3：入向（响应/回调）不消费 x-wop-sub-mch-id——响应额外携带未入签的该头仍验签通过。
+func TestSubMchIDInboundNotConsumed(t *testing.T) {
+	b := newPlatformBuilder(t, "WOP-RSA3072-SHA256")
+	c := verifyClient(t, "WOP-RSA3072-SHA256")
+	h, wire := b.build(t, "POST", "/gateway/x", []byte(`{"code":"SUCCESS"}`), Level0, nil)
+	h.Set(HeaderSubMchID, "PLF-SUB-001") // 签名完成后追加：未入 signedHeaders
+	if res := c.VerifyResponse("POST", "/gateway/x", h, wire); !res.OK {
+		t.Fatalf("入向不应消费子商户头: ok=%v code=%s reason=%s", res.OK, res.Code, res.Reason)
 	}
 }
